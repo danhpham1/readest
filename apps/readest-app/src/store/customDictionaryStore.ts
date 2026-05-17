@@ -6,6 +6,7 @@ import type {
   WebSearchEntry,
 } from '@/services/dictionaries/types';
 import { BUILTIN_PROVIDER_IDS, BUILTIN_WEB_SEARCH_IDS } from '@/services/dictionaries/types';
+import { SSR_DICTIONARIES } from '@/services/dictionaries/ssrDictionaryConfig';
 import { useSettingsStore } from './settingsStore';
 import { publishReplicaDelete, publishReplicaUpsert } from '@/services/sync/replicaPublish';
 import { DICTIONARY_KIND } from '@/services/sync/adapters/dictionary';
@@ -32,13 +33,17 @@ const BUILTIN_WEB_ORDER = [
   BUILTIN_WEB_SEARCH_IDS.merriamWebster,
 ];
 
+const SSR_ORDER = SSR_DICTIONARIES.map((d) => d.id);
+
 const DEFAULT_DICTIONARY_SETTINGS: DictionarySettings = {
   providerOrder: [
+    ...SSR_ORDER,
     BUILTIN_PROVIDER_IDS.wiktionary,
     BUILTIN_PROVIDER_IDS.wikipedia,
     ...BUILTIN_WEB_ORDER,
   ],
   providerEnabled: {
+    ...Object.fromEntries(SSR_ORDER.map((id) => [id, true])),
     [BUILTIN_PROVIDER_IDS.wiktionary]: true,
     [BUILTIN_PROVIDER_IDS.wikipedia]: true,
     [BUILTIN_WEB_SEARCH_IDS.google]: false,

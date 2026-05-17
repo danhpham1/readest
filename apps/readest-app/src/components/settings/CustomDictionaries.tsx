@@ -36,6 +36,7 @@ import {
   getBuiltinWebSearch,
   isValidUrlTemplate,
 } from '@/services/dictionaries/webSearchTemplates';
+import { getSSRDictionaryById } from '@/services/dictionaries/ssrDictionaryConfig';
 import SubPageHeader from './SubPageHeader';
 import { Tips } from './primitives';
 
@@ -371,6 +372,17 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
           badge: _('Web'),
           webSearch: w,
           builtinWeb: false,
+        });
+        continue;
+      }
+      if (id.startsWith('ssr:')) {
+        const cfg = getSSRDictionaryById(id);
+        if (!cfg) continue;
+        rows.push({
+          id,
+          label: cfg.name,
+          kind: 'builtin',
+          badge: _('Web'),
         });
         continue;
       }

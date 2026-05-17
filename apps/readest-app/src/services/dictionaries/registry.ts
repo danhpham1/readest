@@ -27,7 +27,9 @@ import { createMdictProvider } from './providers/mdictProvider';
 import { createDictProvider } from './providers/dictProvider';
 import { createSlobProvider } from './providers/slobProvider';
 import { createWebSearchProvider } from './providers/webSearchProvider';
+import { createSSRDictionaryProvider } from './providers/ssrDictionaryProvider';
 import { getBuiltinWebSearch } from './webSearchTemplates';
+import { getSSRDictionaryById } from './ssrDictionaryConfig';
 
 const instanceCache = new Map<string, DictionaryProvider>();
 
@@ -80,6 +82,13 @@ const getOrCreate = (
     instanceCache.set(id, provider);
     return provider;
   }
+  if (id.startsWith('ssr:')) {
+    const config = getSSRDictionaryById(id);
+    if (!config) return undefined;
+    const provider = createSSRDictionaryProvider(config);
+    instanceCache.set(id, provider);
+    return provider;
+  }
   if (!dict) return undefined;
   if (!fs) return undefined;
   if (dict.kind === 'stardict') {
@@ -127,6 +136,11 @@ export const getEnabledProviders = ({
       continue;
     }
     if (id.startsWith('web:')) {
+      const provider = getOrCreate(id, undefined, undefined, settings);
+      if (provider) out.push(provider);
+      continue;
+    }
+    if (id.startsWith('ssr:')) {
       const provider = getOrCreate(id, undefined, undefined, settings);
       if (provider) out.push(provider);
       continue;
