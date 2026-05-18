@@ -114,9 +114,22 @@ interface DictionaryStoreState {
   setDefaultProviderId(id: string | undefined): void;
 
   /** Add a custom web search (id is generated). Appended + enabled by default. */
-  addWebSearch(name: string, urlTemplate: string): WebSearchEntry;
+  addWebSearch(
+    name: string,
+    urlTemplate: string,
+    renderInline?: boolean,
+    contentSelector?: string,
+  ): WebSearchEntry;
   /** Update an existing custom web search; no-op if id is unknown or built-in. */
-  updateWebSearch(id: string, patch: { name?: string; urlTemplate?: string }): void;
+  updateWebSearch(
+    id: string,
+    patch: {
+      name?: string;
+      urlTemplate?: string;
+      renderInline?: boolean;
+      contentSelector?: string;
+    },
+  ): void;
   /** Soft-delete a custom web search and remove from order/enabled. */
   removeWebSearch(id: string): boolean;
 
@@ -424,11 +437,19 @@ export const useCustomDictionaryStore = create<DictionaryStoreState>((set, get) 
     }));
   },
 
-  addWebSearch: (name, urlTemplate) => {
+  addWebSearch: (name, urlTemplate, renderInline, contentSelector) => {
     const trimmedName = name.trim();
     const trimmedUrl = urlTemplate.trim();
     const id = `web:${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
-    const entry: WebSearchEntry = { id, name: trimmedName, urlTemplate: trimmedUrl };
+    const entry: WebSearchEntry = {
+      id,
+      name: trimmedName,
+      urlTemplate: trimmedUrl,
+      ...(renderInline ? { renderInline: true } : {}),
+      ...(renderInline && contentSelector?.trim()
+        ? { contentSelector: contentSelector.trim() }
+        : {}),
+    };
     set((state) => {
       const list = state.settings.webSearches ?? [];
       const order = state.settings.providerOrder.includes(id)
@@ -458,6 +479,8 @@ export const useCustomDictionaryStore = create<DictionaryStoreState>((set, get) 
               ...t,
               name: patch.name?.trim() ?? t.name,
               urlTemplate: patch.urlTemplate?.trim() ?? t.urlTemplate,
+              renderInline: patch.renderInline ?? t.renderInline,
+              contentSelector: patch.contentSelector?.trim() ?? t.contentSelector,
             }
           : t,
       );
@@ -524,12 +547,23 @@ export const useCustomDictionaryStore = create<DictionaryStoreState>((set, get) 
       const merged: string[] = persistedOrder.length
         ? [...persistedOrder]
         : [...DEFAULT_DICTIONARY_SETTINGS.providerOrder];
+      // New SSR entries are prepended so they appear at the top for existing
+      // users (same first-position they occupy for fresh installs).
+      // All other new defaults are appended at the end.
+      const newSsrIds: string[] = [];
+      const newOtherIds: string[] = [];
       for (const id of DEFAULT_DICTIONARY_SETTINGS.providerOrder) {
         if (!orderSet.has(id)) {
-          merged.push(id);
+          if (id.startsWith('ssr:')) {
+            newSsrIds.push(id);
+          } else {
+            newOtherIds.push(id);
+          }
           orderSet.add(id);
         }
       }
+      if (newSsrIds.length > 0) merged.unshift(...newSsrIds);
+      merged.push(...newOtherIds);
       const persistedEnabled = Object.fromEntries(
         Object.entries(persistedSettings.providerEnabled).filter(([id]) => dropTombstoned(id)),
       );

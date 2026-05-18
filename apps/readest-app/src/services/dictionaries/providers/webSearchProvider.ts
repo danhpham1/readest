@@ -11,9 +11,9 @@
  * pragmatically opens externally; a Tauri-native webview overlay is a
  * follow-up if there's demand.
  */
-import type { DictionaryProvider, WebSearchEntry } from '../types';
+import type { DictionaryProvider, DictionaryLookupOutcome, WebSearchEntry } from '../types';
 import { substituteUrlTemplate } from '../webSearchTemplates';
-import { isTauriAppPlatform } from '@/services/environment';
+import { isTauriAppPlatform, getAPIBaseUrl } from '@/services/environment';
 import { stubTranslation as _ } from '@/utils/misc';
 
 const isTauri = isTauriAppPlatform();
@@ -23,6 +23,65 @@ export interface CreateWebSearchProviderArgs {
   /** Override the displayed label (e.g. localized built-in name). */
   label?: string;
 }
+
+const lookupInline = async (
+  word: string,
+  template: WebSearchEntry,
+  ctx: Parameters<DictionaryProvider['lookup']>[1],
+): Promise<DictionaryLookupOutcome> => {
+  const targetUrl = substituteUrlTemplate(template.urlTemplate, word);
+  const proxyUrl = `${getAPIBaseUrl()}/dict/ssr-proxy?url=${encodeURIComponent(targetUrl)}`;
+
+  let html: string;
+  try {
+    const response = await fetch(proxyUrl, { signal: ctx.signal });
+    if (!response.ok) {
+      return { ok: false, reason: 'error', message: `Proxy returned ${response.status}` };
+    }
+    html = await response.text();
+  } catch (err) {
+    if (ctx.signal.aborted) return { ok: false, reason: 'error', message: 'aborted' };
+    return { ok: false, reason: 'error', message: String(err) };
+  }
+
+  if (ctx.signal.aborted) return { ok: false, reason: 'error', message: 'aborted' };
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  for (const sel of ['script', 'noscript', 'link', 'style']) {
+    doc.querySelectorAll(sel).forEach((el) => el.remove());
+  }
+
+  const selector = template.contentSelector?.trim() || 'body';
+  const content = doc.querySelector(selector);
+  if (!content || !content.textContent?.trim()) {
+    return { ok: false, reason: 'empty' };
+  }
+
+  content.querySelectorAll<HTMLAnchorElement>('a').forEach((a) => {
+    a.removeAttribute('href');
+    a.removeAttribute('onclick');
+    a.style.cursor = 'default';
+  });
+
+  const host = document.createElement('div');
+  host.style.cssText = `all: initial; display: block; color: ${ctx.fg ?? 'currentColor'}; background: transparent;`;
+  const shadow = host.attachShadow({ mode: 'open' });
+
+  const style = document.createElement('style');
+  style.textContent =
+    ':host { display: block; font-family: inherit; color: inherit; font-size: 0.9rem; line-height: 1.5; }';
+  shadow.appendChild(style);
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = content.innerHTML;
+  shadow.appendChild(wrapper);
+
+  ctx.container.appendChild(host);
+
+  return { ok: true, headword: word, sourceLabel: template.name };
+};
 
 export const createWebSearchProvider = ({
   template,
@@ -35,6 +94,10 @@ export const createWebSearchProvider = ({
     if (ctx.signal.aborted) return { ok: false, reason: 'error', message: 'aborted' };
     const trimmed = word.trim();
     if (!trimmed) return { ok: false, reason: 'empty' };
+
+    if (template.renderInline) {
+      return lookupInline(trimmed, template, ctx);
+    }
 
     const url = substituteUrlTemplate(template.urlTemplate, trimmed);
 

@@ -279,10 +279,25 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
     editingId: string | null;
     name: string;
     urlTemplate: string;
+    renderInline: boolean;
+    contentSelector: string;
   }>(null);
-  const openAddWebSearch = () => setWebModal({ editingId: null, name: '', urlTemplate: '' });
+  const openAddWebSearch = () =>
+    setWebModal({
+      editingId: null,
+      name: '',
+      urlTemplate: '',
+      renderInline: false,
+      contentSelector: '',
+    });
   const openEditWebSearch = (entry: WebSearchEntry) =>
-    setWebModal({ editingId: entry.id, name: entry.name, urlTemplate: entry.urlTemplate });
+    setWebModal({
+      editingId: entry.id,
+      name: entry.name,
+      urlTemplate: entry.urlTemplate,
+      renderInline: entry.renderInline ?? false,
+      contentSelector: entry.contentSelector ?? '',
+    });
   const closeWebModal = () => setWebModal(null);
   const submitWebModal = async () => {
     if (!webModal) return;
@@ -297,12 +312,19 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
       return;
     }
     const isAdd = !webModal.editingId;
+    const renderInline = webModal.renderInline;
+    const contentSelector = webModal.contentSelector.trim() || undefined;
     if (webModal.editingId) {
-      updateWebSearch(webModal.editingId, { name, urlTemplate: url });
+      updateWebSearch(webModal.editingId, {
+        name,
+        urlTemplate: url,
+        renderInline,
+        contentSelector,
+      });
       // Re-create the cached provider so the new template + label take effect.
       evictProvider(webModal.editingId);
     } else {
-      addWebSearch(name, url);
+      addWebSearch(name, url, renderInline, contentSelector);
     }
     // Adding a new web search appends to providerOrder (an explicit
     // user reorder); editing only changes name/URL, so providerOrder
@@ -750,6 +772,34 @@ const CustomDictionaries: React.FC<CustomDictionariesProps> = ({ onBack }) => {
                   {_('Use %WORD% where the looked-up word should appear.')}
                 </span>
               </label>
+              <label className='flex cursor-pointer items-center justify-between gap-3'>
+                <span className='label-text text-sm'>{_('Render inline')}</span>
+                <input
+                  type='checkbox'
+                  className='toggle toggle-sm'
+                  checked={webModal.renderInline}
+                  onChange={(e) =>
+                    setWebModal((m) => (m ? { ...m, renderInline: e.target.checked } : m))
+                  }
+                />
+              </label>
+              {webModal.renderInline && (
+                <label className='form-control w-full'>
+                  <span className='label-text text-sm'>{_('Content selector')}</span>
+                  <input
+                    type='text'
+                    className='input input-bordered input-sm w-full font-mono'
+                    value={webModal.contentSelector}
+                    placeholder='#content, .entry, body'
+                    onChange={(e) =>
+                      setWebModal((m) => (m ? { ...m, contentSelector: e.target.value } : m))
+                    }
+                  />
+                  <span className='label-text-alt text-base-content/60 mt-1 text-xs'>
+                    {_('CSS selector for the content to extract. Defaults to body.')}
+                  </span>
+                </label>
+              )}
             </div>
             <div className='modal-action'>
               <button type='button' onClick={closeWebModal} className='btn btn-ghost btn-sm'>

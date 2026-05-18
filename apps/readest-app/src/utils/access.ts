@@ -1,82 +1,35 @@
-import { jwtDecode } from 'jwt-decode';
 import { supabase } from '@/utils/supabase';
 import { UserPlan } from '@/types/quota';
-import { DEFAULT_DAILY_TRANSLATION_QUOTA, DEFAULT_STORAGE_QUOTA } from '@/services/constants';
 import { isWebAppPlatform } from '@/services/environment';
 import { getDailyUsage } from '@/services/translators/utils';
 
-interface Token {
-  plan: UserPlan;
-  storage_usage_bytes: number;
-  storage_purchased_bytes: number;
-  [key: string]: string | number;
-}
+// Personal build — always report 'pro' plan
+export const getSubscriptionPlan = (_token: string): UserPlan => 'pro';
+export const getUserProfilePlan = (_token: string): UserPlan => 'pro';
+export const STORAGE_QUOTA_GRACE_BYTES = 0;
 
-export const getSubscriptionPlan = (token: string): UserPlan => {
-  const data = jwtDecode<Token>(token) || {};
-  return data['plan'] || 'free';
-};
+// Personal build — no plan-based limits. All quota functions return
+// unlimited values so upstream checks never trigger.
+const UNLIMITED = Number.MAX_SAFE_INTEGER;
 
-export const getUserProfilePlan = (token: string): UserPlan => {
-  const data = jwtDecode<Token>(token) || {};
-  let plan = data['plan'] || 'free';
-  if (plan === 'free') {
-    const purchasedQuota = data['storage_purchased_bytes'] || 0;
-    if (purchasedQuota > 0) {
-      plan = 'purchase';
-    }
-  }
-  return plan;
-};
+export const getStoragePlanData = (_token: string) => ({
+  plan: 'pro' as UserPlan,
+  usage: 0,
+  quota: UNLIMITED,
+});
 
-export const STORAGE_QUOTA_GRACE_BYTES = 10 * 1024 * 1024; // 10 MB grace
+export const getTranslationQuota = (_plan: UserPlan): number => UNLIMITED;
 
-export const getStoragePlanData = (token: string) => {
-  const data = jwtDecode<Token>(token) || {};
-  const plan = data['plan'] || 'free';
-  const usage = data['storage_usage_bytes'] || 0;
-  const purchasedQuota = data['storage_purchased_bytes'] || 0;
-  const fixedQuota = parseInt(process.env['NEXT_PUBLIC_STORAGE_FIXED_QUOTA'] || '0');
-  const planQuota = fixedQuota || DEFAULT_STORAGE_QUOTA[plan] || DEFAULT_STORAGE_QUOTA['free'];
-  const quota = planQuota + purchasedQuota;
+export const getTranslationPlanData = (_token: string) => ({
+  plan: 'pro' as UserPlan,
+  usage: getDailyUsage() || 0,
+  quota: UNLIMITED,
+});
 
-  return {
-    plan,
-    usage,
-    quota,
-  };
-};
-
-export const getTranslationQuota = (plan: UserPlan): number => {
-  const fixedQuota = parseInt(process.env['NEXT_PUBLIC_TRANSLATION_FIXED_QUOTA'] || '0');
-  return (
-    fixedQuota || DEFAULT_DAILY_TRANSLATION_QUOTA[plan] || DEFAULT_DAILY_TRANSLATION_QUOTA['free']
-  );
-};
-
-export const getTranslationPlanData = (token: string) => {
-  const data = jwtDecode<Token>(token) || {};
-  const plan: UserPlan = data['plan'] || 'free';
-  const usage = getDailyUsage() || 0;
-  const quota = getTranslationQuota(plan);
-
-  return {
-    plan,
-    usage,
-    quota,
-  };
-};
-
-export const getDailyTranslationPlanData = (token: string) => {
-  const data = jwtDecode<Token>(token) || {};
-  const plan = data['plan'] || 'free';
-  const quota = getTranslationQuota(plan);
-
-  return {
-    plan,
-    quota,
-  };
-};
+export const getDailyTranslationPlanData = (_token: string) => ({
+  plan: 'pro' as UserPlan,
+  quota: UNLIMITED,
+});
 
 export const getAccessToken = async (): Promise<string | null> => {
   // In browser context there might be two instances of supabase one in the app route

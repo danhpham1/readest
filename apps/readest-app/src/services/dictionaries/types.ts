@@ -154,6 +154,16 @@ export interface WebSearchEntry {
   name: string;
   /** URL with `%WORD%` placeholder, e.g. `https://example.com/?q=%WORD%`. */
   urlTemplate: string;
+  /**
+   * When true, the page is fetched server-side via /api/dict/ssr-proxy and
+   * rendered inline in the popup instead of opening a new browser tab.
+   */
+  renderInline?: boolean;
+  /**
+   * CSS selector for the content block to extract from the fetched page.
+   * Only used when `renderInline` is true. Defaults to `body`.
+   */
+  contentSelector?: string;
   /** Soft-delete marker; only set on user-added entries. */
   deletedAt?: number;
 }
