@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bash scripts/vercel-build.sh",
+  "buildCommand": "chmod +x ./scripts/vercel-build.sh && ./scripts/vercel-build.sh",
   "outputDirectory": "apps/readest-app/.next",
   "installCommand": "pnpm install",
   "framework": "nextjs"
