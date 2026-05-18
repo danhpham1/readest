@@ -9,6 +9,8 @@
     "lint:lua": "pnpm --filter @readest/readest-app lint:lua",
     "tauri": "pnpm --filter @readest/readest-app tauri",
     "dev-web": "pnpm --filter @readest/readest-app dev-web",
+    "build-web": "pnpm --filter @readest/readest-app build-web",
+    "vercel-build": "git submodule update --init packages/simplecc-wasm packages/foliate-js && pnpm --filter @readest/readest-app setup-vendors && pnpm --filter @readest/readest-app build-web",
     "prepare": "husky",
     "fmt:check": "pnpm --filter @readest/readest-app fmt:check",
     "clippy:check": "pnpm --filter @readest/readest-app clippy:check",

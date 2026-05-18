@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm vercel-build",
+  "outputDirectory": "apps/readest-app/.next",
+  "installCommand": "pnpm install",
+  "framework": "nextjs"
+}
