@@ -22,10 +22,10 @@ export const getCommandPaletteShortcut = () => (isMacPlatform() ? '⌘⇧P' : 'C
 
 const isWebDevMode = () => process.env['NODE_ENV'] === 'development' && isWebAppPlatform();
 
-// Dev API only in development mode and web platform
-// with command `pnpm dev-web`
-// for production build or tauri app use the production Web API
-export const getAPIBaseUrl = () => (isWebDevMode() ? '/api' : `${getBaseUrl()}/api`);
+// Web platform (dev or production): use relative /api so requests always hit
+// the current deployment (not the hardcoded web.readest.com origin).
+// Tauri desktop app has no local API server → fall back to absolute production URL.
+export const getAPIBaseUrl = () => (isWebAppPlatform() ? '/api' : `${getBaseUrl()}/api`);
 
 // For Node.js API that currently not supported in some edge runtimes
 export const getNodeAPIBaseUrl = () => (isWebDevMode() ? '/api' : `${getNodeBaseUrl()}/api`);
